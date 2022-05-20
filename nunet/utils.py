@@ -1,13 +1,52 @@
+import os
 import re
+from pathlib import Path, PureWindowsPath
 from typing import List, Optional
-from pathlib import Path
 
 import numpy as np
 import torch
 from torchvision import transforms
 
-from .transformer_net import TransformerNet
 from .config import Config, SelfConfig
+from .transformer_net import TransformerNet
+
+
+def to_legal_ospath(path: str) -> str:
+    """Detect the OS and replace any eventual illegal path character with "_".
+    This will allow file transfer without filename check from Linux to Windows.
+
+    Parameters
+    ----------
+    path: str
+        The input path
+
+    Returns
+    -------
+    legal_path: str
+        A path with no illegal windows character but in posix path format
+    """
+    if os.name == "nt":  # If running on Windows
+        # Replace all illegal characters with underscore
+        legal_path = re.sub(r"\*|:|<|>|\?|\|", '_', path)
+        # Turn the Windows path into a Posix path if it isn't already
+        legal_path = PureWindowsPath(legal_path).as_posix()
+    elif os.name == "posix":  # If running Linux or MacOS
+        legal_path = PureWindowsPath(legal_path).as_posix()
+    return(legal_path)
+
+
+def load_checkpoints(cfg: Config) -> List[TransformerNet]:
+    style_models = []
+    for p in cfg._saved_model_path:
+        model = torch.load(to_legal_ospath(p))
+        state_dict = model['state_dict']
+        for k in list(state_dict.keys()):
+            if re.search(r'in\d+\.running_(mean|var)$', k):
+                del state_dict[k]
+        style_model = TransformerNet()
+        style_model.load_state_dict(state_dict)
+        style_models.append(style_model)
+    return style_models
 
 
 def load_checkpoints(cfg: Config) -> List[TransformerNet]:
