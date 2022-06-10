@@ -3,6 +3,7 @@ import re
 from pathlib import Path, PureWindowsPath
 from typing import List, Optional
 
+import imgaug.augmenters as iaa
 import numpy as np
 import torch
 from torchvision import transforms
@@ -133,3 +134,72 @@ def torch2numpy(
     tensor = tensor.detach().cpu().squeeze()
     array = tensor.permute(1, 2, 0).numpy() if ch == 3 else tensor.numpy()
     return array
+
+
+def gram_matrix(y):
+    (b, ch, h, w) = y.size()
+    features = y.view(b, ch, w * h)
+    features_t = features.transpose(1, 2)
+    gram = features.bmm(features_t) / (ch * h * w)
+    return gram.view(b, ch * ch)
+
+
+def normalize_batch(batch: torch.Tensor, n_channels=3) -> torch.Tensor:
+    # normalize using imagenet mean and std
+    mean = batch.new_tensor([0.485, 0.456, 0.406]).view(-1, 1, 1) # size=(3,1,1)
+    std = batch.new_tensor([0.229, 0.224, 0.225]).view(-1, 1, 1)
+    if n_channels == 1:
+        mean = mean.mean(0, keepdim=True)
+        std = std.mean(0, keepdim=True)
+    batch = batch.div(255.0)
+    return (batch - mean) / std
+
+
+def augment_batch(
+    batch: torch.Tensor,
+    augmenters: iaa.Sequential,
+    threshold: int,
+    loop_limit: int = 10
+) -> torch.Tensor:
+    """Contrast augmentation
+
+    Parameters
+    ----------
+    batch : torch.Tensor
+        Batch of tensors whose shape is (b,1,h,w)
+    augmenters : imgaug.augmenters.Sequential
+        Sequence of augmenters
+    threshold : uint8 or int < 0
+        Ensure minimum contrast
+    loop_limit : int
+        Limit number of loop
+
+    Returns
+    -------
+    augmented : torch.Tensor
+        Tensor having shape of (batch, channel=1, height, width)
+
+    Notes
+    -----
+    - Only support grayscale image tensor (tensor.size(1)==1)
+
+    """
+    assert batch.size(1) == 1, 'Not supported tensor shape'
+    images = batch.permute(0, 2, 3, 1).squeeze(dim=-1).numpy().astype(np.uint8)
+    augmented = []
+    for img in images:
+        aug = augmenters.augment_image(img)  #***
+        n = 1
+        if threshold < 0:
+            aug = torch.tensor(aug[np.newaxis, :, :], dtype=batch.dtype)
+            augmented.append(aug)
+            continue
+        while aug.max() - aug.min() < threshold:
+            if n >= loop_limit:
+                aug = img
+                break
+            aug = augmenters.augment_image(img)
+            n += 1
+        aug = torch.tensor(aug[np.newaxis, :, :], dtype=batch.dtype)
+        augmented.append(aug)
+    return torch.stack(augmented, dim=0)
