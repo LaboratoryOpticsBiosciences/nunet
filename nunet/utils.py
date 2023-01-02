@@ -66,7 +66,8 @@ def load_checkpoints(cfg: Config) -> List[TransformerNet]:
 
 def load_model(
     cfg: SelfConfig,
-    ind: int = -1
+    ind: int = -1,
+    cuda: bool = True,
 ):
     print('len(cfg._saved_model_path):', len(cfg._saved_model_path))
     models = load_checkpoints(cfg)
@@ -81,7 +82,8 @@ def load_model(
     model_name = models_names[ind]
     print(f'Loading {ind}: {model_name}')
     nu_net = models[ind]
-    nu_net.cuda()
+    if cuda:
+        nu_net.cuda()
     nu_net.eval()
     return common_path, model_name, nu_net
 

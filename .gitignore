@@ -1,5 +1,5 @@
 config/
-models_filter/
+models*/
 
 # cache
 .mypy_cache/
