@@ -1,5 +1,6 @@
 import os
 import re
+import zipfile
 from pathlib import Path, PureWindowsPath
 from typing import List, Optional
 
@@ -12,48 +13,17 @@ from .config import Config, SelfConfig
 from .transformer_net import TransformerNet
 
 
-def to_legal_ospath(path: str) -> str:
-    """Detect the OS and replace any eventual illegal path character with "_".
-    This will allow file transfer without filename check from Linux to Windows.
-
-    Parameters
-    ----------
-    path: str
-        The input path
-
-    Returns
-    -------
-    legal_path: str
-        A path with no illegal windows character but in posix path format
-    """
-    if os.name == "nt":  # If running on Windows
-        # Replace all illegal characters with underscore
-        legal_path = re.sub(r"\*|:|<|>|\?|\|", '_', path)
-        # Turn the Windows path into a Posix path if it isn't already
-        legal_path = PureWindowsPath(legal_path).as_posix()
-    elif os.name == "posix":  # If running Linux or MacOS
-        legal_path = PureWindowsPath(legal_path).as_posix()
-    return(legal_path)
-
-
-def load_checkpoints(cfg: Config) -> List[TransformerNet]:
+def load_checkpoints(
+    cfg: Config,
+    zip_file: Optional[zipfile.ZipFile] = None,
+) -> List[TransformerNet]:
     style_models = []
     for p in cfg._saved_model_path:
-        model = torch.load(to_legal_ospath(p))
-        state_dict = model['state_dict']
-        for k in list(state_dict.keys()):
-            if re.search(r'in\d+\.running_(mean|var)$', k):
-                del state_dict[k]
-        style_model = TransformerNet()
-        style_model.load_state_dict(state_dict)
-        style_models.append(style_model)
-    return style_models
-
-
-def load_checkpoints(cfg: Config) -> List[TransformerNet]:
-    style_models = []
-    for p in cfg._saved_model_path:
-        model = torch.load(p)
+        if zip_file is not None:
+            with zip_file.open(p) as f:
+                model = torch.load(f)
+        else:
+            model = torch.load(p)
         state_dict = model['state_dict']
         for k in list(state_dict.keys()):
             if re.search(r'in\d+\.running_(mean|var)$', k):
@@ -68,9 +38,10 @@ def load_model(
     cfg: SelfConfig,
     ind: int = -1,
     cuda: bool = True,
+    zip_file: Optional[zipfile.ZipFile] = None,
 ):
     print('len(cfg._saved_model_path):', len(cfg._saved_model_path))
-    models = load_checkpoints(cfg)
+    models = load_checkpoints(cfg, zip_file)
 
     common_path = Path(cfg._saved_model_path[0]).parent.stem
     print('common_path:', {common_path})
@@ -205,3 +176,48 @@ def augment_batch(
         aug = torch.tensor(aug[np.newaxis, :, :], dtype=batch.dtype)
         augmented.append(aug)
     return torch.stack(augmented, dim=0)
+
+
+# def to_legal_ospath(path: str) -> str:
+#     """Detect the OS and replace any eventual illegal path character with "_".
+#     This will allow file transfer without filename check from Linux to Windows.
+
+#     Parameters
+#     ----------
+#     path: str
+#         The input path
+
+#     Returns
+#     -------
+#     legal_path: str
+#         A path with no illegal windows character but in posix path format
+#     """
+#     if os.name == "nt":  # If running on Windows
+#         # Replace all illegal characters with underscore
+#         legal_path = re.sub(r"\*|:|<|>|\?|\|", '_', path)
+#         # Turn the Windows path into a Posix path if it isn't already
+#         legal_path = PureWindowsPath(legal_path).as_posix()
+#     elif os.name == "posix":  # If running Linux or MacOS
+#         legal_path = PureWindowsPath(legal_path).as_posix()
+#     return legal_path
+
+
+# def load_checkpoints(
+#     cfg: Config,
+#     zip_file: Optional[zipfile.ZipFile] = None,
+# ) -> List[TransformerNet]:
+#     style_models = []
+#     for p in cfg._saved_model_path:
+#         if zip_file is not None:
+#             with zip_file.open(p) as f:
+#                 model = torch.load(f)
+#         else:
+#             model = torch.load(to_legal_ospath(p))
+#         state_dict = model['state_dict']
+#         for k in list(state_dict.keys()):
+#             if re.search(r'in\d+\.running_(mean|var)$', k):
+#                 del state_dict[k]
+#         style_model = TransformerNet()
+#         style_model.load_state_dict(state_dict)
+#         style_models.append(style_model)
+#     return style_models

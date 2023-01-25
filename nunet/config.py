@@ -1,5 +1,6 @@
 import logging
 import sys
+import zipfile
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -35,7 +36,7 @@ class Config:
         attr = filter(_filter, dir(self))
         return out.join([f'{k} : {self.__getattribute__(k)}' for k in attr])
 
-    def __init__(self, config_file:str):
+    def __init__(self, config_file: str, zip_file: Optional[zipfile.ZipFile]=None):
         """Override config
 
         Parameters
@@ -45,8 +46,12 @@ class Config:
         """
         self.config_file = config_file
 
-        with open(config_file, 'r') as f:
-            cfg = yaml.safe_load(f)
+        if zip_file is not None:
+            with zip_file.open(config_file) as f:
+                cfg = yaml.safe_load(f)
+        else:
+            with open(config_file, 'r') as f:
+                cfg = yaml.safe_load(f)
         no_matches = []
         results = {}
         overridden = {}
@@ -311,8 +316,8 @@ class SelfConfig(Config):
     #  Default: -1.0
     weight_binarizer: float = -1.0
 
-    def __init__(self, config_file: str):
-        super().__init__(config_file)
+    def __init__(self, config_file: str, zip_file: Optional[zipfile.ZipFile]=None):
+        super().__init__(config_file, zip_file)
         self._check_required('save_model_dir', 'config_datasets')
 
 
