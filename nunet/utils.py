@@ -5,6 +5,7 @@ from pathlib import Path, PureWindowsPath
 from typing import List, Optional
 
 import imgaug.augmenters as iaa
+import cv2
 import numpy as np
 import torch
 from torchvision import transforms
@@ -107,6 +108,25 @@ def torch2numpy(
     tensor = tensor.detach().cpu().squeeze()
     array = tensor.permute(1, 2, 0).numpy() if ch == 3 else tensor.numpy()
     return array
+
+
+def match_out_shape(
+    out_img: np.ndarray,
+    in_img: np.ndarray
+):
+    """Sometimes the output shape does not match the input shape
+
+    Parameters
+    ----------
+    out_img : numpy.ndarray
+        (Y, X)
+    in_img : numpy.ndarray
+        (Y, X)
+    """
+    in_shape = in_img.shape
+    x = in_shape[1]
+    y = in_shape[0]
+    return cv2.resize(out_img, (x, y))
 
 
 def gram_matrix(y):
