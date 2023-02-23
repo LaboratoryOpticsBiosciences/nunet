@@ -14,6 +14,40 @@ from .config import Config, SelfConfig
 from .transformer_net import TransformerNet
 
 
+def load_models_from_zipfile(
+    f: str,
+    default_model_config='config/_example/exp/filter_slider',
+):
+    zip_file = zipfile.ZipFile(f)
+    def _filter_cfg(i: zipfile.ZipInfo) -> bool:
+        return not i.is_dir()
+    cfgs = list(filter(
+        lambda zi: re.search(rf'{default_model_config}.+', zi.filename),
+        zip_file.filelist
+    ))
+    cfgs = list(filter(_filter_cfg, cfgs))
+
+    def _get_sw(s: str) -> Optional[int]:
+        res = re.search(r'sw\d+', s)
+        if res is not None:
+            r = res.group()
+            return int(r.lstrip('sw'))
+        return None
+
+    def _sort_cfgs(zi: zipfile.ZipInfo):
+        fname: str = zi.filename
+        return _get_sw(fname)
+    cfgs_sorted = sorted(cfgs, key=_sort_cfgs)
+
+    self_cfgs = [SelfConfig(_, zip_file=zip_file) for _ in cfgs_sorted]
+    models = dict()
+    for cfg in self_cfgs:
+        common_path, model_name, nu_net = load_model(cfg, cuda=False,
+                                                     zip_file=zip_file)
+        models[_get_sw(common_path)] = nu_net
+    return models
+
+
 def load_checkpoints(
     cfg: Config,
     zip_file: Optional[zipfile.ZipFile] = None,
