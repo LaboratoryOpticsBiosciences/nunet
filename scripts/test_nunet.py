@@ -1,6 +1,6 @@
 """Run NU-Net given a checkpoint and an input image
 
-1. Download 'models_filter_slider' and unzip it in the root directory
+1. Download 'nunet_models.tar' on GitHub and unzip it in the root directory
 2. Run `pip install -e .`
 3. Run this script from the root directory
     See help message of this script by executing `python scripts/test_nunet.py --help`
@@ -85,14 +85,18 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description="Plot results of ultimate(!) NU-Net")
-    parser.add_argument('cfg', type=Path, help='Config for a model')
-    parser.add_argument('infile', type=Path, help='Input image')
-    parser.add_argument('outfile', type=Path, help='Output filename')
+    parser = ArgumentParser(description="Test a NU-Net given an image")
+    parser.add_argument('cfg', type=Path,
+                        help="Config for a model")
+    parser.add_argument('infile', type=Path,
+                        help="Input image")
+    parser.add_argument('outfile', type=Path,
+                        help="Output filename")
     parser.add_argument('-i', '--id', type=int, default=-1,
-                        help='Choose a checkpoint by its id. -1 means the '
-                        'last one. (default: -1)')
-    parser.add_argument('--cuda', action='store_true')
+                        help="Choose a checkpoint by its id. -1 means the "
+                        "last one. (default: -1)")
+    parser.add_argument('--cuda', action='store_true',
+                        help="Use CUDA device")
     args = parser.parse_args()
 
     t0 = time.time()

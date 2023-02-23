@@ -1,4 +1,7 @@
 """NU-Net training script
+
+This script is an example to show how to train NU-Net and to reproduce results
+of the paper.
 """
 import argparse
 import copy
@@ -36,7 +39,10 @@ from nunet.transformer_net import TransformerNet
 from nunet.transforms import TransformsCellpose
 from nunet.vgg import Vgg19
 
-FILE_TRAINID = './config/data/all_collections_trainid.yml'
+# File provides hard-coded IDs of images whose dataset does not split
+# training/testing subsets. It uses and follows bioimageloader library to load
+# datasets. Find more details in the paper.
+FILE_TRAINID = './config/_example/data/all_collections_trainid.yml'
 
 
 def setup_logger(cmd, cfg):
@@ -452,73 +458,6 @@ def get_dataloaders(cfg):
             'loader_style_img': loader_style_img}
 
 
-# def _get_dataloaders(cfg):
-#     global logger
-
-#     print('##############################################################')
-#     print('    Start loading dataset')
-#     print('##############################################################')
-#     # content (content_loss)
-#     datasets_content = get_lst_nucleidataset(cfg._config_datasets['content'])
-#     datasets_content_concat = ConcatDataset(datasets_content)
-#     len_val = int(len(datasets_content_concat) * cfg.validation_split)
-#     len_train = len(datasets_content_concat) - len_val
-#     datasets_content_train, datasets_content_val = random_split(
-#             datasets_content_concat,
-#             [len_train, len_val],
-#             generator=torch.Generator().manual_seed(cfg.seed),
-#     )
-#     loader_content_train = DataLoader(
-#             datasets_content_train,
-#             batch_size=cfg.batch_size,
-#             num_workers=cfg.content_workers,
-#             shuffle=cfg.shuffle,
-#             worker_init_fn=lambda x: _worker_init_fn(x, cfg),
-#     )
-#     loader_content_val = DataLoader(
-#             datasets_content_val,
-#             batch_size=cfg.batch_size,
-#             num_workers=cfg.content_workers,
-#             worker_init_fn=lambda x: _worker_init_fn(x, cfg),
-#             # shuffle=cfg.shuffle,
-#     )
-#     # style_mask (attractive_loss)
-#     datasets_style_mask = get_lst_nucleidataset(cfg._config_datasets['style_mask'])
-#     # loader_style_mask = DataLoader(ConcatDataset(datasets_style_mask), batch_size=args.style_batch_size,
-#     #         num_workers=args.style_workers, shuffle=False)
-#     ## IterableDataset
-#     iterable_datasets_style_mask = InfiniteIterableDataset(*datasets_style_mask)
-#     loader_style_mask = DataLoader(
-#             iterable_datasets_style_mask,
-#             batch_size=cfg.style_batch_size,
-#             num_workers=cfg.style_workers,
-#             worker_init_fn=lambda x: _worker_init_fn(x, cfg),
-#             )
-#     ## style_img (repulsive_loss)
-#     loader_style_img = None
-#     if cfg.reg_weight > 0:
-#         datasets_style_img = get_lst_nucleidataset(cfg._config_datasets['style_img'])
-#         ## IterableDataset
-#         # iterable_datasets_style_img = InfiniteIterableDataset(*datasets_style_img)
-#         # loader_style_img = DataLoader(iterable_datasets_style_img, batch_size=args.style_batch_size,
-#         #         num_workers=args.style_workers, shuffle=False)
-
-#     printnlog(
-#         f'[Content] \t{len(datasets_content_concat):2d}: '
-#         f'{len(loader_content_train.dataset):6d} '
-#         f'(val: {len(loader_content_val.dataset):6d})')
-#     printnlog(f'[StyleGT] \t{len(datasets_style_mask):2d}: '
-#             f'{len(loader_style_mask.dataset):6d}')
-#     if cfg.reg_weight > 0:
-#         printnlog(f'[StyleImg]\t{len(datasets_style_img):2d}: '
-#                 f'{len(loader_style_img.dataset):6d}')
-
-#     return {'loader_content_train': loader_content_train,
-#             'loader_content_val': loader_content_val,
-#             'loader_style_mask': loader_style_mask,
-#             'loader_style_img': loader_style_img}
-
-
 def balance_loss_weights(cfg, losses):
     '''Adjust `style_weight` to balance style to content weight ratio
 
@@ -547,7 +486,9 @@ def self_supervise(
     writer=None,
     initial_loss_run=False
 ):
-    global e
+    """Train NU-Net
+    """
+    global e  # epoch
     global logger
 
     def _get_losses(
@@ -561,7 +502,7 @@ def self_supervise(
         contrast_augmenters: Optional[iaa.Sequential] = None,
         weight_scheduler=None,
     ) -> dict:
-        """Calculate self-supervision losses
+        """Calculate self-supervision losses for a batch
 
         Parameters
         ----------
@@ -581,44 +522,35 @@ def self_supervise(
         """
         x = data['image']
         n_batch = x.size(0)
-        # print('n_batch', n_batch)
         # Contrast augmentation (on CPU)
-        # print('x', type(x), x.shape, x.dtype)
         x_aug = utils.augment_batch(x,
                 contrast_augmenters,
                 cfg.augment_contrast_threshold) \
                 if cfg.augment_contrast else x
         # transformer (NU-Net)
-        # print('x_aug', type(x_aug), x_aug.shape, x_aug.dtype)
         x_aug = x_aug.to(device)
         y_aug = transformer(x_aug)
-        # Regularizer binarizer
+
+        # [DEPRECATED] Regularizer binarizer
         binarizer = 0.
         if cfg.weight_binarizer > 0:
             binarizer = utils.binarizer_regularizer_x2(y_aug)
             binarizer *= cfg.weight_binarizer
-
+        # VGG
         y_aug = utils.normalize_batch(y_aug)  # Probably I shouldn't do this...
         x_aug = utils.normalize_batch(x_aug)
-        # print(y_aug.size()) # (16, 1, 256, 256)
-        # print(x_aug.size())
-        # y_aug = utils.normalize_batch_nuclei(y_aug)
-        # x_aug = utils.normalize_batch_nuclei(x_aug)
-
         features_y_aug = vgg19(y_aug, mode='feature')
         features_x_aug = vgg19(x_aug, mode='feature')
-        # features_y_aug = mobilenet(y_aug.repeat(1,3,1,1), targets=None, mode='feature')
-        # features_x_aug = mobilenet(x_aug.repeat(1,3,1,1), targets=None, mode='feature')
-
+        # Content loss
         content_loss = cfg.content_weight * mse_loss(features_y_aug[cfg.content_layer],
                                                      features_x_aug[cfg.content_layer])
 
-        ## ATTRACTIVE style_loss
+        # Morphological loss (a.k.a. attractive style_loss)
         attractive_loss = 0.
         _attractive_loss_layers = [0. for i in range(4)]
         features_y_aug = [features_y_aug[i] for i in cfg.style_layer]  # Filter
         grams_y_aug = [utils.gram_matrix(t) for t in features_y_aug]  # Gram(y)
-
+        # VGG
         data_mask = next(iter_loader_style_mask)
         s_mask = data_mask['mask']
         n_sbatch = len(s_mask)
@@ -644,48 +576,12 @@ def self_supervise(
         attractive_loss /= n_batch
         attractive_loss *= cfg.style_weight
 
-        # # REPULSIVE style_loss (Regularizer)
+        # [DEPRECATED] REPULSIVE style_loss (Regularizer)
         repulsive_loss = 0.
-        # if args.reg_weight > 0:
-        #     sphereized_grams_y_aug = sphereize(grams_y_aug)
-        #     with tqdm(range(args.style_img_niter), ncols=72,
-        #             leave=False, desc=f'E{e+1:02d}[StyleREP]') as pbar_style:
-        #         for sbatch_id in pbar_style:
-        #             data_img = next(iter_loader_style_img)
-        #             s_image = data_img['image']
-        #             n_sbatch = len(s_image)
-        #             # ## Contrast augmentation
-        #             # s_image_aug = augment_batch(s_image, augmenters, args.augment_contrast_threshold)
-        #             # s_image_aug = s_image_aug.to(device)
-        #             s_image = s_image.to(device)
-        #             # Repulsive style features (of data['image'])
-        #             s_image = utils.normalize_batch(s_image)
-        #             features_s_image = mobilenet(s_image, targets=None, mode='feature')
-        #             features_s_image = [features_s_image[i] for i in args.style_layer] # Filter
-        #             grams_s_image = [utils.gram_matrix(t) for t in features_s_image]
-        #             sphereized_grams_s_image = sphereize(grams_s_image)
-        #             # Repulsive, auto-broadcasting
-        #             for batch_sgm_y, sbatch_sgram_image in \
-        #                     zip(sphereized_grams_y_aug, sphereized_grams_s_image):
-        #                 for b_ind in range(n_batch):
-        #                     sgm_y = batch_sgm_y[b_ind:b_ind+1, :]
-        #                     # Repulsive, auto-broadcasting
-        #                     repulsive_loss += (sgm_y * sbatch_sgram_image).sum() / n_sbatch
-        #     # Each feature_gy has oneself in feature_gs and it leads to adding |self|^2 to `style_loss`
-        #     for batch_sgm_y in sphereized_grams_y_aug:
-        #         repulsive_loss -= (batch_sgm_y * batch_sgm_y).sum() / n_sbatch
-        #     # Absolute value wrapping
-        #     repulsive_loss = torch.abs(repulsive_loss)
-        #     ## Same reason as for attractive_loss
-        #     repulsive_loss /= args.style_img_niter
-        #     repulsive_loss /= n_batch
-        #     repulsive_loss *= args.reg_weight
-
-        ## Fix losses not to depend on batch_size
-        # content_loss /= n_batch # Already done by MSELoss
-
+        # [DEPRECATED]
         if weight_scheduler is not None:
             content_loss = weight_scheduler.decay(content_loss)
+        # Construct total loss
         total_loss = content_loss + attractive_loss + repulsive_loss + binarizer
         losses = {
             'content_loss': content_loss,
@@ -795,7 +691,7 @@ def self_supervise(
 
     vgg19 = Vgg19(requires_grad=False).to(device)
     vgg19.eval()
-    # Centroids will be used for repulsion regularizer (repulsive_loss)
+    # [DEPRECATED] Centroids will be used for repulsion regularizer (repulsive_loss)
     if cfg.reg_weight > 0:
         print('Building centroids')
         sphereize = vgg19.build_centroids(
@@ -1093,7 +989,7 @@ def main(cmd, cfg):
     #     supervise(cfg, dataloaders, save_model_filename, writer=writer)
     # elif cmd == 'eval':
     #     # stylize(args)
-    #     raise NotImplementedError
+        # raise NotImplementedError
     else:
         raise NotImplementedError
     writer.close()
@@ -1129,7 +1025,7 @@ def parse_config(args):
 
 if __name__ == '__main__':
     # global
-    e = 0
+    e = 0  # epoch
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     save_model_filename = ''
