@@ -1,5 +1,4 @@
 # NU-Net: a self-supervised smart filter for enhancing blobs in bioimages
-
 While supervised deep neural networks have become the dominant method for image analysis
 tasks in bioimages, truly versatile methods are not available yet because of the
 diversity of modalities and conditions and the cost of retraining. In practice,
@@ -11,12 +10,19 @@ novel perceptual loss implicitly learns a soft separation of background and fore
 We used self-supervised training using 25 datasets covering diverse modalities of
 nuclear and cellular images. We show its ability to selectively improve contrast, remove
 background and enhance objects across a wide range of datasets and workflow while
-keeping image content. The pre-trained models are light and practical and available as a
-free and open-source software for the community, as well as a ready to use plugin for
-Napari.
+keeping image content. The pre-trained models are light and practical, and published as
+free and open-source software for the community. NU-Net is also available as a plugin
+for Napari.
 
 
 ## Installation
+Use PyPI (Python Package Index)
+```sh
+pip install nunet
+```
+
+or clone this repo and install it locally
+
 ```sh
 git clone https://github.com/LaboratoryOpticsBiosciences/nunet.git
 cd nunet
@@ -39,7 +45,7 @@ To test pre-trained NU-Nets,
 > Get help message by invoking the script `python scripts/test_nunet.py --help`.
 
 To train the pre-trained NU-Nets
-- Execute `./scripts/./scripts/train_nunet.py` folowing its instruction.
+- Execute `./scripts/train_nunet.py` folowing its instruction.
 
 > Note that the provided NU-Net models on the releases page are not reproducible until
 > we later release private datasets, namely ones prefixed with `LOB_`. Find more details
