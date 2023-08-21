@@ -1,5 +1,4 @@
-# NU-Net (experimental)
-> To be updated with abstract
+# NU-Net: a self-supervised smart filter for enhancing blobs in bioimages
 
 While supervised deep neural networks have become the dominant method for image analysis
 tasks in bioimages, truly versatile methods are not available yet because of the
@@ -45,3 +44,7 @@ To train the pre-trained NU-Nets
 > Note that the provided NU-Net models on the releases page are not reproducible until
 > we later release private datasets, namely ones prefixed with `LOB_`. Find more details
 > in the paper.
+
+## Citation
+This work was accepted by BIC (Bio-Image Computing) workshop at ICCV2023. The paper will
+become available soon.
