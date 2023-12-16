@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
+requires = ["setuptools>=61", "setuptools_scm[toml]>=8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,8 +9,7 @@ authors = [
 ]
 description = "NU-Net"
 readme = "README.md"
-requires-python = ">=3.8"
-keywords = ["one", "two"]
+requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -39,25 +38,5 @@ dynamic = ["version"]
 
 [tool.setuptools.packages.find]
 where = ["nunet"]
-# packages = ["nunet"]
 
 [tool.setuptools_scm]
-
-# [options]
-# python_requires = >= 3.8
-# packages = find:
-# zip_safe = False
-# install_requires =
-#   rich
-#   tqdm
-#   numpy
-#   Pillow
-#   opencv-python-headless
-#   torch
-#   torchvision
-#   tensorboard
-#   tifffile
-#   albumentations  # scikit-image, opencv-python-headless, scipy
-#   PyYAML
-#   imgaug
-#   bioimageloader

@@ -34,7 +34,7 @@ pip install -e .
 The repo provides two scripts: one to test and the other to train a NU-Net.
 
 For common steps to test and train NU-Nets,
-1. Go to release page https://github.com/LaboratoryOpticsBiosciences/nunet.git
+1. Go to release page https://github.com/LaboratoryOpticsBiosciences/nunet/releases
 
 2. Download an archive called `nunet_models.tar` and unzip it in the root directory of
    the repo. It should unzip `config/` folder and `models_filter_slider/` folder.

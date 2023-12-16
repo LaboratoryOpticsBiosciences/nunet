@@ -10,16 +10,17 @@ import time
 from argparse import ArgumentParser
 from pathlib import Path
 
-from PIL import Image
 import numpy as np
 import torch
+from PIL import Image
+
 from nunet.config import SelfConfig
 from nunet.utils import load_model, numpy2torch, torch2numpy
 
 
 def run_nu_net(img, nu_net, cuda=True) -> np.ndarray:
     img = check_input_channel(img)
-    with torch.no_grad():
+    with torch.inference_mode():
         tensor = numpy2torch(img)
         if cuda:
             tensor = tensor.cuda()
